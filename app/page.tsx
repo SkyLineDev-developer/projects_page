@@ -54,7 +54,7 @@ export default function Home() {
   // Fetch desde la API
   useEffect(() => {
     fetch(process.env.NODE_ENV === "production"
-        ? "https://api-projects.skylinedev.com.co/api/users"
+        ? "https://www.api-projects.skylinedev.com.co/api/users"
         : "http://localhost:3001/api/users")
       .then(r => { if (!r.ok) throw new Error(`HTTP ${r.status}`); return r.json(); })
       .then((data: ApiProject[]) => { setProjects(data.map(mapProject)); setLoading(false); })
