@@ -23,8 +23,8 @@ interface Project {
 }
 
 const categoryLabel: Record<string, string> = {
-  Company_Project: "Proyecto Empresarial",
-  Personal:        "Proyecto Personal",
+  Company_Project: "Business Project",
+  Personal:        "Personal Project",
 };
 
 function mapProject(p: ApiProject): Project {
@@ -35,7 +35,7 @@ function mapProject(p: ApiProject): Project {
     name: p.project_name,
     domain,
     url: p.project_link,
-    description: p.project_description ?? "Proyecto desarrollado por SkylineDev.",
+    description: p.project_description ?? "Project developed by SkylineDev.",
     category: categoryLabel[p.category] ?? p.category,
     tags: p.technologies,
   };
@@ -271,7 +271,7 @@ export default function Home() {
             </div>
 
             <div style={{ paddingBottom:"14px", textAlign:"center" }}>
-              <span className="mono" style={{ fontSize:"9px", letterSpacing:"0.2em", color:"var(--dim)" }}>← → TECLADO</span>
+              <span className="mono" style={{ fontSize:"9px", letterSpacing:"0.2em", color:"var(--dim)" }}>← → KEYBOARD</span>
             </div>
           </div>
 
@@ -287,7 +287,7 @@ export default function Home() {
               <span className="mono" style={{ flex:1, fontSize:"11px", color:"var(--muted)", background:"var(--dim)", padding:"4px 12px", borderRadius:"4px", overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap", letterSpacing:"0.04em" }}>
                 {project.url}
               </span>
-              <a href={project.url} target="_blank" rel="noopener noreferrer" className="open-link">ABRIR ↗</a>
+              <a href={project.url} target="_blank" rel="noopener noreferrer" className="open-link">OPEN ↗</a>
             </div>
 
             {/* iframe */}
