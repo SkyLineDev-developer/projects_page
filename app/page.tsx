@@ -237,7 +237,7 @@ export default function Home() {
                   ? (dir==="right" ? "anim-out-l" : "anim-out-r")
                   : (dir==="right" ? "anim-in-r"  : "anim-in-l")}
               >
-                <h1 className="syne" style={{ fontSize:"clamp(30px,3.5vw,50px)", fontWeight:800, lineHeight:0.92, letterSpacing:"-0.03em", color:"var(--text)", marginBottom:"16px", wordBreak:"break-word" }}>
+                <h1 className="syne" style={{ fontSize:"clamp(30px,3.5vw,30px)", fontWeight:800, lineHeight:0.92, letterSpacing:"-0.03em", color:"var(--text)", marginBottom:"16px", wordBreak:"break-word" }}>
                   {project.name}
                 </h1>
                 <p className="mono" style={{ fontSize:"12px", color:"var(--accent)", marginBottom:"18px", letterSpacing:"0.04em" }}>
