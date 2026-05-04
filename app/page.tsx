@@ -50,6 +50,14 @@ export default function Home() {
   const [dir, setDir]           = useState<"left" | "right">("right");
   const [animating, setAnimating] = useState(false);
   const [iframeLoading, setIframeLoading] = useState(true);
+  const [isMobile, setIsMobile] = useState(false);
+
+  useEffect(() => {
+    const update = () => setIsMobile(window.innerWidth <= 860);
+    update();
+    window.addEventListener("resize", update);
+    return () => window.removeEventListener("resize", update);
+  }, []);
 
   // Fetch desde la API
   useEffect(() => {
@@ -177,11 +185,14 @@ export default function Home() {
         .layout { display:flex; flex:1; overflow:hidden; }
         .left { width:380px; min-width:380px; display:flex; flex-direction:column; border-right:1px solid var(--border); background:var(--surface); }
         .right { flex:1; display:flex; flex-direction:column; position:relative; min-height:0; }
+        .iframe-holder { flex:1; position:relative; min-height:420px; overflow:hidden; }
+        .iframe-holder iframe { width:100%; height:100%; min-height:320px; display:block; }
 
         @media (max-width:860px) {
           .layout { flex-direction:column; }
           .left { width:100%; min-width:0; border-right:none; border-bottom:1px solid var(--border); }
-          .right { min-height:300px; }
+          .right { min-height:0; }
+          .iframe-holder { min-height:300px; }
         }
 
         .big-num {
@@ -290,26 +301,34 @@ export default function Home() {
               <a href={project.url} target="_blank" rel="noopener noreferrer" className="open-link">OPEN ↗</a>
             </div>
 
-            {/* iframe */}
-            <div style={{ flex:1, position:"relative" }}>
-              {iframeLoading && (
-                <div style={{ position:"absolute",inset:0,zIndex:10,background:"var(--bg)",display:"flex",flexDirection:"column",alignItems:"center",justifyContent:"center",gap:"12px" }}>
-                  <svg className="spinner" width="26" height="26" viewBox="0 0 26 26" fill="none">
-                    <circle cx="13" cy="13" r="10" stroke="var(--dim)" strokeWidth="2"/>
-                    <path d="M13 3 A10 10 0 0 1 23 13" stroke="var(--accent)" strokeWidth="2" strokeLinecap="round"/>
-                  </svg>
-                  <span className="mono" style={{ fontSize:"10px",letterSpacing:"0.25em",color:"var(--muted)" }}>CARGANDO</span>
-                </div>
-              )}
-              <iframe
-                key={project.id}
-                src={project.url}
-                title={project.name}
-                style={{ width:"100%",height:"100%",border:"none",opacity:iframeLoading?0:1,transition:"opacity 0.3s ease",display:"block" }}
-                onLoad={() => setIframeLoading(false)}
-                sandbox="allow-scripts allow-same-origin allow-forms allow-popups"
-              />
-            </div>
+            {/* iframe o botón móvil */}
+            {isMobile ? (
+              <div style={{ flex:1, display:"flex", alignItems:"center", justifyContent:"center", padding:"40px 24px", background:"var(--surface)" }}>
+                <a href={project.url} target="_blank" rel="noopener noreferrer" className="open-link" style={{ padding:"14px 20px", fontSize:"12px" }}>
+                  SEE PROJECT ↗
+                </a>
+              </div>
+            ) : (
+              <div className="iframe-holder">
+                {iframeLoading && (
+                  <div style={{ position:"absolute",inset:0,zIndex:10,background:"var(--bg)",display:"flex",flexDirection:"column",alignItems:"center",justifyContent:"center",gap:"12px" }}>
+                    <svg className="spinner" width="26" height="26" viewBox="0 0 26 26" fill="none">
+                      <circle cx="13" cy="13" r="10" stroke="var(--dim)" strokeWidth="2"/>
+                      <path d="M13 3 A10 10 0 0 1 23 13" stroke="var(--accent)" strokeWidth="2" strokeLinecap="round"/>
+                    </svg>
+                    <span className="mono" style={{ fontSize:"10px",letterSpacing:"0.25em",color:"var(--muted)" }}>CARGANDO</span>
+                  </div>
+                )}
+                <iframe
+                  key={project.id}
+                  src={project.url}
+                  title={project.name}
+                  style={{ width:"100%",height:"100%",border:"none",opacity:iframeLoading?0:1,transition:"opacity 0.3s ease" }}
+                  onLoad={() => setIframeLoading(false)}
+                  sandbox="allow-scripts allow-same-origin allow-forms allow-popups"
+                />
+              </div>
+            )}
           </div>
         </div>
 
