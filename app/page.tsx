@@ -251,7 +251,7 @@ export default function Landing() {
             </button>
           </div>
 
-          {/* Logo placeholder */}
+          {/* Logo */}
           <div
             className="reveal d2"
             style={{
@@ -259,25 +259,27 @@ export default function Landing() {
               ...fade,
             }}
           >
-            {/*
-              ── REEMPLAZA CON TU LOGO:
-              <img src="/logo.png" alt="SkylineDev" style={{ height:72, width:"auto" }} />
-            */}
             <div style={{
               width:"clamp(72px,10vw,96px)",
               height:"clamp(72px,10vw,96px)",
               borderRadius:"50%",
               border:"1px solid #1c1c1c",
               background:"#0d0d0d",
-              display:"flex", flexDirection:"column",
-              alignItems:"center", justifyContent:"center",
+              display:"flex", alignItems:"center", justifyContent:"center",
               margin:"0 auto",
+              overflow:"hidden",
               animation:"glow 5s ease-in-out infinite",
             }}>
-              <span style={{
-                fontFamily:"'Syne',sans-serif", fontWeight:900,
-                fontSize:"clamp(24px,4vw,36px)", color:"#f0f0f0", lineHeight:1,
-              }}>S</span>
+              <img
+                src="/logo/LogoSinFondo.png"
+                alt="SkylineDev"
+                style={{
+                  width:"90%",
+                  height:"90%",
+                  objectFit:"contain",
+                  display:"block",
+                }}
+              />
             </div>
           </div>
 
