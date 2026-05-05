@@ -151,14 +151,14 @@ export default function Home() {
           background:transparent; color:var(--muted); cursor:pointer;
           transition:all 0.2s ease;
         }
-        .nav-btn:hover { border-color:var(--accent); color:var(--accent); background:var(--accent-dim); }
+        .nav-btn:hover { border-color:#F69B02; color:#F69B02; background:var(--accent-dim); }
         .nav-btn:active { transform:scale(0.97); }
 
         .dot-btn {
           height:3px; border-radius:2px; border:none; cursor:pointer; padding:0;
           background:var(--dim); transition:all 0.3s cubic-bezier(0.16,1,0.3,1);
         }
-        .dot-btn.active { background:var(--accent); }
+        .dot-btn.active { background:#F69B02; }
         .dot-btn:hover:not(.active) { background:var(--muted); }
 
         .tag {
@@ -171,7 +171,7 @@ export default function Home() {
           color:var(--muted); text-decoration:none; padding:5px 12px;
           border:1px solid var(--border); transition:all 0.2s ease; white-space:nowrap;
         }
-        .open-link:hover { color:var(--accent); border-color:var(--accent); background:var(--accent-dim); }
+        .open-link:hover { color:#F69B02; border-color:#F69B02; background:var(--accent-dim); }
 
         @keyframes ticker { to { transform:translateX(-50%); } }
         .ticker { display:inline-flex; animation:ticker 22s linear infinite; white-space:nowrap; }
@@ -180,7 +180,7 @@ export default function Home() {
         @keyframes spin { to { transform:rotate(360deg); } }
         .spinner { animation:spin 1.2s linear infinite; }
 
-        .progress-fill { height:100%; background:var(--accent); transition:width 0.4s cubic-bezier(0.16,1,0.3,1); }
+        .progress-fill { height:100%; background:#F69B02; transition:width 0.4s cubic-bezier(0.16,1,0.3,1); }
 
         .layout { display:flex; flex:1; overflow:hidden; }
         .left { width:380px; min-width:380px; display:flex; flex-direction:column; border-right:1px solid var(--border); background:var(--surface); }
@@ -212,7 +212,7 @@ export default function Home() {
               <span key={i} className="mono" style={{ fontSize:"9px", letterSpacing:"0.3em" }}>
                 {["PORTFOLIO","SKYLINEDEV","PROYECTOS","DEPLOYED","LIVE","READY"].map((t,j) => (
                   <span key={j}>
-                    <span style={{ color: j%2===0 ? "var(--accent)" : "var(--muted)" }}>{t}</span>
+                    <span style={{ color: j%2===0 ? "#F69B02" : "var(--muted)" }}>{t}</span>
                     <span style={{ margin:"0 22px", color:"var(--dim)" }}>·</span>
                   </span>
                 ))}
@@ -317,7 +317,7 @@ export default function Home() {
                   <div style={{ position:"absolute",inset:0,zIndex:10,background:"var(--bg)",display:"flex",flexDirection:"column",alignItems:"center",justifyContent:"center",gap:"12px" }}>
                     <svg className="spinner" width="26" height="26" viewBox="0 0 26 26" fill="none">
                       <circle cx="13" cy="13" r="10" stroke="var(--dim)" strokeWidth="2"/>
-                      <path d="M13 3 A10 10 0 0 1 23 13" stroke="var(--accent)" strokeWidth="2" strokeLinecap="round"/>
+                      <path d="M13 3 A10 10 0 0 1 23 13" stroke="#F69B02" strokeWidth="2" strokeLinecap="round"/>
                     </svg>
                     <span className="mono" style={{ fontSize:"10px",letterSpacing:"0.25em",color:"var(--muted)" }}>CARGANDO</span>
                   </div>
