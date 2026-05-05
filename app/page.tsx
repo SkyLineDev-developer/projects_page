@@ -1,346 +1,370 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
+import Link from "next/link";
 
-// ─── Tipos ───────────────────────────────────────────────────────────────────
-interface ApiProject {
-  id: number;
-  project_name: string;
-  project_link: string;
-  project_description: string | null;
-  category: string;
-  technologies: string[];
-}
+const ACCENT = "#F69B02";
 
-interface Project {
-  id: string;
-  name: string;
-  domain: string;
-  url: string;
-  description: string;
-  category: string;
-  tags: string[];
-}
-
-const categoryLabel: Record<string, string> = {
-  Company_Project: "Business Project",
-  Personal:        "Personal Project",
+const content = {
+  es: {
+    label: "Portafolio de Proyectos",
+    heading1: "Mi trabajo,",
+    heading2: "en un solo lugar.",
+    sub: "Proyectos personales y empresariales de SkylineDev.",
+    cta: "Ver Proyectos →",
+    translateBtn: "EN",
+  },
+  en: {
+    label: "Project Portfolio",
+    heading1: "My work,",
+    heading2: "in one place.",
+    sub: "Personal and business projects by SkylineDev.",
+    cta: "View Projects →",
+    translateBtn: "ES",
+  },
 };
 
-function mapProject(p: ApiProject): Project {
-  let domain = p.project_link;
-  try { domain = new URL(p.project_link).hostname.replace(/^www\./, ""); } catch {}
-  return {
-    id: String(p.id),
-    name: p.project_name,
-    domain,
-    url: p.project_link,
-    description: p.project_description ?? "Project developed by SkylineDev.",
-    category: categoryLabel[p.category] ?? p.category,
-    tags: p.technologies,
-  };
-}
-// ─────────────────────────────────────────────────────────────────────────────
-
-export default function Home() {
-  const [projects, setProjects] = useState<Project[]>([]);
-  const [loading, setLoading]   = useState(true);
-  const [error, setError]       = useState<string | null>(null);
-  const [current, setCurrent]   = useState(0);
-  const [dir, setDir]           = useState<"left" | "right">("right");
-  const [animating, setAnimating] = useState(false);
-  const [iframeLoading, setIframeLoading] = useState(true);
-  const [isMobile, setIsMobile] = useState(false);
+export default function Landing() {
+  const [lang, setLang]       = useState<"es" | "en">("es");
+  const [fading, setFading]   = useState(false);
+  const [mounted, setMounted] = useState(false);
+  const canvasRef             = useRef<HTMLCanvasElement>(null);
+  const t = content[lang];
 
   useEffect(() => {
-    const update = () => setIsMobile(window.innerWidth <= 860);
-    update();
-    window.addEventListener("resize", update);
-    return () => window.removeEventListener("resize", update);
+    const id = setTimeout(() => setMounted(true), 60);
+    return () => clearTimeout(id);
   }, []);
 
-  // Fetch desde la API
-  useEffect(() => {
-    fetch(process.env.NODE_ENV === "production"
-        ? "https://www.api-projects.skylinedev.com.co/api/users"
-        : "http://localhost:3001/api/users")
-      .then(r => { if (!r.ok) throw new Error(`HTTP ${r.status}`); return r.json(); })
-      .then((data: ApiProject[]) => { setProjects(data.map(mapProject)); setLoading(false); })
-      .catch(e => { setError(e.message); setLoading(false); });
-  }, []);
-
-  const total   = projects.length;
-  const project = projects[current];
-
-  function goTo(index: number, direction?: "left" | "right") {
-    if (animating || index === current) return;
-    const d = direction ?? (index > current ? "right" : "left");
-    setDir(d);
-    setAnimating(true);
-    setIframeLoading(true);
-    setTimeout(() => {
-      setCurrent(index);
-      setAnimating(false);
-    }, 380);
+  function toggleLang() {
+    setFading(true);
+    setTimeout(() => { setLang(l => l === "es" ? "en" : "es"); setFading(false); }, 250);
   }
 
-  function prev() { goTo((current - 1 + total) % total, "left"); }
-  function next() { goTo((current + 1) % total, "right"); }
-
+  // Canvas dot grid con parallax al mouse
   useEffect(() => {
-    const onKey = (e: KeyboardEvent) => {
-      if (e.key === "ArrowRight") next();
-      if (e.key === "ArrowLeft") prev();
+    const canvas = canvasRef.current;
+    if (!canvas) return;
+    const ctx = canvas.getContext("2d");
+    if (!ctx) return;
+
+    let raf: number;
+    let mx = -9999, my = -9999;
+
+    const resize = () => {
+      canvas.width  = window.innerWidth;
+      canvas.height = window.innerHeight;
     };
-    window.addEventListener("keydown", onKey);
-    return () => window.removeEventListener("keydown", onKey);
-  }, [current, animating]);
+    resize();
+    window.addEventListener("resize", resize);
 
-  const dot = "#4ade80";
+    const onMouse = (e: MouseEvent) => { mx = e.clientX; my = e.clientY; };
+    const onTouch = (e: TouchEvent) => { mx = e.touches[0].clientX; my = e.touches[0].clientY; };
+    window.addEventListener("mousemove", onMouse);
+    window.addEventListener("touchmove", onTouch, { passive: true });
 
-  // ── Estados de carga / error / vacío ──────────────────────────────────────
-  if (loading) return (
-    <main style={{ minHeight:"100vh", background:"#080808", display:"flex", alignItems:"center", justifyContent:"center", flexDirection:"column", gap:"16px" }}>
-      <svg style={{ animation:"spin 1.2s linear infinite" }} width="32" height="32" viewBox="0 0 32 32" fill="none">
-        <style>{"@keyframes spin{to{transform:rotate(360deg)}}"}</style>
-        <circle cx="16" cy="16" r="12" stroke="#1c1c1c" strokeWidth="2"/>
-        <path d="M16 4 A12 12 0 0 1 28 16" stroke="#4ade80" strokeWidth="2" strokeLinecap="round"/>
-      </svg>
-      <span style={{ fontFamily:"'DM Mono',monospace", fontSize:"11px", letterSpacing:"0.25em", color:"#666" }}>CARGANDO PROYECTOS...</span>
-    </main>
-  );
+    const GAP = 70;
 
-  if (error) return (
-    <main style={{ minHeight:"100vh", background:"#080808", display:"flex", alignItems:"center", justifyContent:"center", flexDirection:"column", gap:"12px" }}>
-      <span style={{ fontFamily:"'DM Mono',monospace", fontSize:"11px", letterSpacing:"0.2em", color:"#f87171" }}>ERROR AL CARGAR</span>
-      <span style={{ fontFamily:"'DM Mono',monospace", fontSize:"10px", color:"#666" }}>{error}</span>
-    </main>
-  );
+    const loop = (ts: number) => {
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+      const cols = Math.ceil(canvas.width  / GAP) + 1;
+      const rows = Math.ceil(canvas.height / GAP) + 1;
 
-  if (projects.length === 0) return (
-    <main style={{ minHeight:"100vh", background:"#080808", display:"flex", alignItems:"center", justifyContent:"center" }}>
-      <span style={{ fontFamily:"'DM Mono',monospace", fontSize:"11px", letterSpacing:"0.25em", color:"#666" }}>SIN PROYECTOS</span>
-    </main>
-  );
+      for (let i = 0; i < cols; i++) {
+        for (let j = 0; j < rows; j++) {
+          const bx   = i * GAP;
+          const by   = j * GAP;
+          const dx   = bx - mx;
+          const dy   = by - my;
+          const dist = Math.sqrt(dx * dx + dy * dy);
+          const pull = Math.max(0, 1 - dist / 200);
+          const x    = bx + dx * pull * -0.15 + Math.sin(ts * 0.0004 + i * 0.8) * 1;
+          const y    = by + dy * pull * -0.15 + Math.cos(ts * 0.0004 + j * 0.8) * 1;
+          const a    = 0.035 + pull * 0.5;
+          const r    = 0.6   + pull * 2.6;
+
+          ctx.beginPath();
+          ctx.arc(x, y, r, 0, Math.PI * 2);
+          ctx.fillStyle = pull > 0.05
+            ? `rgba(246,155,2,${a})`
+            : `rgba(255,255,255,${a * 0.4})`;
+          ctx.fill();
+        }
+      }
+      raf = requestAnimationFrame(loop);
+    };
+
+    raf = requestAnimationFrame(loop);
+    return () => {
+      cancelAnimationFrame(raf);
+      window.removeEventListener("resize", resize);
+      window.removeEventListener("mousemove", onMouse);
+      window.removeEventListener("touchmove", onTouch);
+    };
+  }, []);
+
+  const fade: React.CSSProperties = {
+    opacity:    fading ? 0 : 1,
+    transform:  fading ? "translateY(6px)" : "translateY(0)",
+    transition: "opacity 0.25s ease, transform 0.25s ease",
+  };
 
   return (
     <>
       <style>{`
-        @import url('https://fonts.googleapis.com/css2?family=DM+Mono:wght@300;400;500&family=Syne:wght@400;600;700;800&display=swap');
+        @import url('https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&family=Syne:wght@800;900&display=swap');
+
         *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
-        :root {
-          --bg: #080808; --surface: #0f0f0f; --border: #1c1c1c;
-          --text: #efefef; --muted: #666; --dim: #2a2a2a;
-          --accent: #4ade80; --accent-dim: rgba(74,222,128,0.06);
+        html, body { background: #060606; height: 100%; }
+
+
+        @keyframes fade-up {
+          from { opacity: 0; transform: translateY(20px); }
+          to   { opacity: 1; transform: translateY(0); }
         }
-        .syne { font-family: 'Syne', sans-serif; }
-        .mono { font-family: 'DM Mono', monospace; }
+        .reveal { opacity: 0; animation: fade-up 0.7s cubic-bezier(0.16,1,0.3,1) forwards; }
+        .d1 { animation-delay: 0.1s; }
+        .d2 { animation-delay: 0.25s; }
+        .d3 { animation-delay: 0.4s; }
+        .d4 { animation-delay: 0.55s; }
+        .d5 { animation-delay: 0.7s; }
 
-        @keyframes slideInR  { from { opacity:0; transform:translateX(36px);  } to { opacity:1; transform:translateX(0); } }
-        @keyframes slideInL  { from { opacity:0; transform:translateX(-36px); } to { opacity:1; transform:translateX(0); } }
-        @keyframes slideOutR { from { opacity:1; transform:translateX(0);     } to { opacity:0; transform:translateX(-36px); } }
-        @keyframes slideOutL { from { opacity:1; transform:translateX(0);     } to { opacity:0; transform:translateX(36px); } }
-        .anim-in-r  { animation: slideInR  0.38s cubic-bezier(0.16,1,0.3,1) forwards; }
-        .anim-in-l  { animation: slideInL  0.38s cubic-bezier(0.16,1,0.3,1) forwards; }
-        .anim-out-r { animation: slideOutR 0.38s cubic-bezier(0.16,1,0.3,1) forwards; }
-        .anim-out-l { animation: slideOutL 0.38s cubic-bezier(0.16,1,0.3,1) forwards; }
-
-        .nav-btn {
-          font-family:'DM Mono',monospace; font-size:11px; letter-spacing:0.18em;
-          padding:11px 20px; border:1px solid var(--border);
-          background:transparent; color:var(--muted); cursor:pointer;
-          transition:all 0.2s ease;
-        }
-        .nav-btn:hover { border-color:#F69B02; color:#F69B02; background:var(--accent-dim); }
-        .nav-btn:active { transform:scale(0.97); }
-
-        .dot-btn {
-          height:3px; border-radius:2px; border:none; cursor:pointer; padding:0;
-          background:var(--dim); transition:all 0.3s cubic-bezier(0.16,1,0.3,1);
-        }
-        .dot-btn.active { background:#F69B02; }
-        .dot-btn:hover:not(.active) { background:var(--muted); }
-
-        .tag {
-          font-family:'DM Mono',monospace; font-size:9px; letter-spacing:0.2em;
-          padding:3px 9px; border:1px solid var(--border); color:var(--muted);
+        @keyframes glow {
+          0%,100% { box-shadow: 0 0 0px rgba(246,155,2,0); }
+          50%      { box-shadow: 0 0 60px rgba(246,155,2,0.2); }
         }
 
-        .open-link {
-          font-family:'DM Mono',monospace; font-size:10px; letter-spacing:0.15em;
-          color:var(--muted); text-decoration:none; padding:5px 12px;
-          border:1px solid var(--border); transition:all 0.2s ease; white-space:nowrap;
+        @keyframes scan {
+          from { top: 0; }
+          to   { top: 100vh; }
         }
-        .open-link:hover { color:#F69B02; border-color:#F69B02; background:var(--accent-dim); }
-
-        @keyframes ticker { to { transform:translateX(-50%); } }
-        .ticker { display:inline-flex; animation:ticker 22s linear infinite; white-space:nowrap; }
-        .ticker:hover { animation-play-state:paused; }
-
-        @keyframes spin { to { transform:rotate(360deg); } }
-        .spinner { animation:spin 1.2s linear infinite; }
-
-        .progress-fill { height:100%; background:#F69B02; transition:width 0.4s cubic-bezier(0.16,1,0.3,1); }
-
-        .layout { display:flex; flex:1; overflow:hidden; }
-        .left { width:380px; min-width:380px; display:flex; flex-direction:column; border-right:1px solid var(--border); background:var(--surface); }
-        .right { flex:1; display:flex; flex-direction:column; position:relative; min-height:0; }
-        .iframe-holder { flex:1; position:relative; min-height:420px; overflow:hidden; }
-        .iframe-holder iframe { width:100%; height:100%; min-height:320px; display:block; }
-
-        @media (max-width:860px) {
-          .layout { flex-direction:column; }
-          .left { width:100%; min-width:0; border-right:none; border-bottom:1px solid var(--border); }
-          .right { min-height:0; }
-          .iframe-holder { min-height:300px; }
+        .scan-line {
+          position: fixed; left: 0; right: 0; height: 1px;
+          background: linear-gradient(90deg, transparent, rgba(246,155,2,0.08), transparent);
+          animation: scan 14s linear infinite;
+          pointer-events: none; z-index: 1;
         }
 
-        .big-num {
-          position:absolute; right:28px; bottom:16px;
-          font-family:'Syne',sans-serif; font-weight:800; font-size:130px;
-          line-height:1; color:var(--text); opacity:0.025;
-          pointer-events:none; user-select:none; letter-spacing:-0.06em;
+        @media (min-width: 641px) {
+          .main-layout {
+            height: 100vh;
+            max-height: 100vh;
+            overflow: hidden;
+            padding: 0 clamp(24px,8vw,100px);
+          }
+        }
+        @media (max-width: 640px) {
+          .main-layout {
+            min-height: 100vh;
+            padding: 80px 24px 48px;
+          }
         }
       `}</style>
 
-      <main style={{ minHeight:"100vh", display:"flex", flexDirection:"column", background:"var(--bg)", color:"var(--text)" }}>
+      {/* Canvas de fondo */}
+      <canvas
+        ref={canvasRef}
+        style={{ position:"fixed", inset:0, zIndex:0, pointerEvents:"none" }}
+      />
 
-        {/* Ticker */}
-        <div style={{ overflow:"hidden", borderBottom:"1px solid var(--border)", padding:"8px 0", background:"var(--surface)", flexShrink:0 }}>
-          <div className="ticker">
-            {[...Array(2)].map((_, i) => (
-              <span key={i} className="mono" style={{ fontSize:"9px", letterSpacing:"0.3em" }}>
-                {["PORTFOLIO","SKYLINEDEV","PROYECTOS","DEPLOYED","LIVE","READY"].map((t,j) => (
-                  <span key={j}>
-                    <span style={{ color: j%2===0 ? "#F69B02" : "var(--muted)" }}>{t}</span>
-                    <span style={{ margin:"0 22px", color:"var(--dim)" }}>·</span>
-                  </span>
-                ))}
-              </span>
-            ))}
+      {/* Scan line */}
+      <div className="scan-line" />
+
+      {/* Corner brackets */}
+      {[
+        { top:16,    left:16,    borderTop:`1px solid ${ACCENT}`,    borderLeft:`1px solid ${ACCENT}` },
+        { top:16,    right:16,   borderTop:`1px solid ${ACCENT}`,    borderRight:`1px solid ${ACCENT}` },
+        { bottom:16, left:16,    borderBottom:`1px solid ${ACCENT}`, borderLeft:`1px solid ${ACCENT}` },
+        { bottom:16, right:16,   borderBottom:`1px solid ${ACCENT}`, borderRight:`1px solid ${ACCENT}` },
+      ].map((s, i) => (
+        <div key={i} style={{ position:"fixed", width:28, height:28, opacity:0.2, pointerEvents:"none", zIndex:50, ...s }} />
+      ))}
+
+      {/* ── MAIN ── */}
+      <main className="main-layout" style={{
+        background:"#060606",
+        display:"flex",
+        flexDirection:"column",
+        alignItems:"center",
+        justifyContent:"center",
+        position:"relative",
+        zIndex:10,
+        opacity: mounted ? 1 : 0,
+        transition:"opacity 0.6s ease",
+      }}>
+
+        {/* Centro: todo el contenido */}
+        <div style={{
+          display:"flex",
+          flexDirection:"column",
+          alignItems:"center",
+          textAlign:"center",
+          maxWidth:700,
+          width:"100%",
+          gap:0,
+        }}>
+
+          {/* Label + translate */}
+          <div
+            className="reveal d1"
+            style={{
+              display:"flex", alignItems:"center", gap:12,
+              marginBottom:"clamp(16px,2.5vh,48px)",
+              ...fade,
+            }}
+          >
+            <span style={{
+              width:5, height:5, borderRadius:"50%",
+              background: ACCENT, display:"inline-block",
+              boxShadow:`0 0 8px ${ACCENT}`,
+              flexShrink:0,
+            }} />
+            <span style={{
+              fontFamily:"'DM Mono',monospace",
+              fontSize:10, letterSpacing:"0.28em", color:"#444",
+            }}>
+              {t.label}
+            </span>
+            <button
+              onClick={toggleLang}
+              style={{
+                fontFamily:"'DM Mono',monospace",
+                fontSize:9, letterSpacing:"0.18em",
+                padding:"5px 12px",
+                border:"1px solid #202020",
+                background:"transparent",
+                color:"#383838",
+                cursor:"pointer",
+              }}
+              onMouseEnter={e => {
+                const b = e.currentTarget;
+                b.style.borderColor = ACCENT;
+                b.style.color = ACCENT;
+              }}
+              onMouseLeave={e => {
+                const b = e.currentTarget;
+                b.style.borderColor = "#202020";
+                b.style.color = "#383838";
+              }}
+            >
+              {t.translateBtn}
+            </button>
           </div>
+
+          {/* Logo placeholder */}
+          <div
+            className="reveal d2"
+            style={{
+              marginBottom:"clamp(18px,3vh,56px)",
+              ...fade,
+            }}
+          >
+            {/*
+              ── REEMPLAZA CON TU LOGO:
+              <img src="/logo.png" alt="SkylineDev" style={{ height:72, width:"auto" }} />
+            */}
+            <div style={{
+              width:"clamp(72px,10vw,96px)",
+              height:"clamp(72px,10vw,96px)",
+              borderRadius:"50%",
+              border:"1px solid #1c1c1c",
+              background:"#0d0d0d",
+              display:"flex", flexDirection:"column",
+              alignItems:"center", justifyContent:"center",
+              margin:"0 auto",
+              animation:"glow 5s ease-in-out infinite",
+            }}>
+              <span style={{
+                fontFamily:"'Syne',sans-serif", fontWeight:900,
+                fontSize:"clamp(24px,4vw,36px)", color:"#f0f0f0", lineHeight:1,
+              }}>S</span>
+            </div>
+          </div>
+
+          {/* Heading */}
+          <h1
+            className="reveal d3"
+            style={{
+              fontFamily:"'Syne',sans-serif",
+              fontWeight:900,
+              fontSize: lang === "es" ? "clamp(36px,5.5vw,72px)" : "clamp(42px,8vw,100px)",
+              lineHeight:0.9,
+              letterSpacing:"-0.03em",
+              color:"#f0f0f0",
+              marginBottom:"clamp(12px,2vh,32px)",
+              ...fade,
+            }}
+          >
+            {t.heading1}<br />
+            <span style={{ color: ACCENT }}>{t.heading2}</span>
+          </h1>
+
+          {/* Sub */}
+          <p
+            className="reveal d4"
+            style={{
+              fontFamily:"'DM Mono',monospace",
+              fontSize:"clamp(11px,1.2vw,13px)",
+              letterSpacing:"0.06em",
+              lineHeight:1.8,
+              color:"#444",
+              marginBottom:"clamp(20px,3vh,60px)",
+              ...fade,
+            }}
+          >
+            {t.sub}
+          </p>
+
+          {/* CTA */}
+          <div className="reveal d5" style={{ ...fade }}>
+            <Link
+              href="/projects"
+              style={{
+                fontFamily:"'DM Mono',monospace",
+                fontSize:11,
+                letterSpacing:"0.2em",
+                fontWeight:500,
+                padding:"16px 44px",
+                background: ACCENT,
+                color:"#000",
+                textDecoration:"none",
+                display:"inline-block",
+                transition:"transform 0.2s ease, box-shadow 0.25s ease",
+              }}
+              onMouseEnter={e => {
+                const a = e.currentTarget;
+                a.style.transform  = "translateY(-3px)";
+                a.style.boxShadow  = `0 16px 48px rgba(246,155,2,0.3)`;
+              }}
+              onMouseLeave={e => {
+                const a = e.currentTarget;
+                a.style.transform = "translateY(0)";
+                a.style.boxShadow = "none";
+              }}
+            >
+              {t.cta}
+            </Link>
+          </div>
+
         </div>
 
-        <div className="layout">
-
-          {/* ── LEFT PANEL ── */}
-          <div className="left">
-            <div style={{ flex:1, padding:"36px 32px", position:"relative", overflow:"hidden" }}>
-              <div className="big-num">{String(current+1).padStart(2,"0")}</div>
-
-              {/* Counter + status */}
-              <div style={{ display:"flex", alignItems:"center", justifyContent:"space-between", marginBottom:"32px" }}>
-                <span className="mono" style={{ fontSize:"10px", letterSpacing:"0.25em", color:"var(--muted)" }}>
-                  {String(current+1).padStart(2,"0")} / {String(total).padStart(2,"0")}
-                </span>
-                <div style={{ display:"flex", alignItems:"center", gap:"7px" }}>
-                  <span style={{ width:"7px", height:"7px", borderRadius:"50%", background:dot, display:"inline-block", boxShadow:`0 0 6px 1px ${dot}55` }} />
-                  <span className="mono" style={{ fontSize:"9px", letterSpacing:"0.2em", color:"var(--muted)" }}>
-                    READY
-                  </span>
-                </div>
-              </div>
-
-              {/* Animated content */}
-              <div
-                key={project.id}
-                className={animating
-                  ? (dir==="right" ? "anim-out-l" : "anim-out-r")
-                  : (dir==="right" ? "anim-in-r"  : "anim-in-l")}
-              >
-                <h1 className="syne" style={{ fontSize:"clamp(30px,3.5vw,30px)", fontWeight:800, lineHeight:0.92, letterSpacing:"-0.03em", color:"var(--text)", marginBottom:"16px", wordBreak:"break-word" }}>
-                  {project.name}
-                </h1>
-                {/* <p className="mono" style={{ fontSize:"12px", color:"var(--accent)", marginBottom:"18px", letterSpacing:"0.04em" }}>
-                  {project.category}
-                </p> */}
-                <p className="mono" style={{ fontSize:"12px", color:"#F69B02", marginBottom:"18px", letterSpacing:"0.04em" }}>
-                  {project.category}
-                </p>
-                <p className="mono" style={{ fontSize:"12px", lineHeight:1.85, color:"var(--muted)", marginBottom:"22px" }}>
-                  {project.description}
-                </p>
-                {project.tags.length > 0 && (
-                  <div style={{ display:"flex", flexWrap:"wrap", gap:"7px" }}>
-                    {project.tags.map(tag => <span key={tag} className="tag">{tag}</span>)}
-                  </div>
-                )}
-              </div>
-            </div>
-
-            {/* Progress */}
-            <div style={{ height:"2px", background:"var(--dim)", margin:"0 32px", flexShrink:0 }}>
-              <div className="progress-fill" style={{ width:`${((current+1)/total)*100}%` }} />
-            </div>
-
-            {/* Nav */}
-            <div style={{ padding:"18px 32px", display:"flex", alignItems:"center", justifyContent:"space-between", flexShrink:0 }}>
-              <button className="nav-btn" onClick={prev}>← PREV</button>
-              <div style={{ display:"flex", gap:"6px", alignItems:"center" }}>
-                {projects.map((_,i) => (
-                  <button key={i} className={`dot-btn ${i===current?"active":""}`} style={{ width: i===current ? "26px" : "8px" }} onClick={() => goTo(i)} />
-                ))}
-              </div>
-              <button className="nav-btn" onClick={next}>NEXT →</button>
-            </div>
-
-            <div style={{ paddingBottom:"14px", textAlign:"center" }}>
-              <span className="mono" style={{ fontSize:"9px", letterSpacing:"0.2em", color:"var(--dim)" }}>← → KEYBOARD</span>
-            </div>
-          </div>
-
-          {/* ── RIGHT PANEL ── */}
-          <div className="right">
-            {/* Browser bar */}
-            <div style={{ display:"flex", alignItems:"center", gap:"10px", padding:"9px 14px", borderBottom:"1px solid var(--border)", background:"var(--surface)", flexShrink:0 }}>
-              <div style={{ display:"flex", gap:"5px" }}>
-                <span style={{ width:"10px",height:"10px",borderRadius:"50%",background:"#ff5f57",display:"inline-block" }} />
-                <span style={{ width:"10px",height:"10px",borderRadius:"50%",background:"#febc2e",display:"inline-block" }} />
-                <span style={{ width:"10px",height:"10px",borderRadius:"50%",background:"#28c840",display:"inline-block" }} />
-              </div>
-              <span className="mono" style={{ flex:1, fontSize:"11px", color:"var(--muted)", background:"var(--dim)", padding:"4px 12px", borderRadius:"4px", overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap", letterSpacing:"0.04em" }}>
-                {project.url}
-              </span>
-              <a href={project.url} target="_blank" rel="noopener noreferrer" className="open-link">OPEN ↗</a>
-            </div>
-
-            {/* iframe o botón móvil */}
-            {isMobile ? (
-              <div style={{ flex:1, display:"flex", alignItems:"center", justifyContent:"center", padding:"40px 24px", background:"var(--surface)" }}>
-                <a href={project.url} target="_blank" rel="noopener noreferrer" className="open-link" style={{ padding:"14px 20px", fontSize:"12px" }}>
-                  SEE PROJECT ↗
-                </a>
-              </div>
-            ) : (
-              <div className="iframe-holder">
-                {iframeLoading && (
-                  <div style={{ position:"absolute",inset:0,zIndex:10,background:"var(--bg)",display:"flex",flexDirection:"column",alignItems:"center",justifyContent:"center",gap:"12px" }}>
-                    <svg className="spinner" width="26" height="26" viewBox="0 0 26 26" fill="none">
-                      <circle cx="13" cy="13" r="10" stroke="var(--dim)" strokeWidth="2"/>
-                      <path d="M13 3 A10 10 0 0 1 23 13" stroke="#F69B02" strokeWidth="2" strokeLinecap="round"/>
-                    </svg>
-                    <span className="mono" style={{ fontSize:"10px",letterSpacing:"0.25em",color:"var(--muted)" }}>CARGANDO</span>
-                  </div>
-                )}
-                <iframe
-                  key={project.id}
-                  src={project.url}
-                  title={project.name}
-                  style={{ width:"100%",height:"100%",border:"none",opacity:iframeLoading?0:1,transition:"opacity 0.3s ease" }}
-                  onLoad={() => setIframeLoading(false)}
-                  sandbox="allow-scripts allow-same-origin allow-forms allow-popups"
-                />
-              </div>
-            )}
-          </div>
+        {/* Bottom: firma */}
+        <div style={{
+          position:"absolute",
+          bottom:"clamp(16px,3vh,28px)",
+          left:0, right:0,
+          display:"flex",
+          justifyContent:"center",
+        }}>
+          <span style={{
+            fontFamily:"'DM Mono',monospace",
+            fontSize:9,
+            letterSpacing:"0.25em",
+            color:"#F69B02",
+          }}>
+            SKYLINEDEV © {new Date().getFullYear()}
+          </span>
         </div>
-
-        {/* Bottom bar */}
-        <div style={{ padding:"9px 32px",borderTop:"1px solid var(--border)",background:"var(--surface)",display:"flex",justifyContent:"space-between",alignItems:"center",flexShrink:0 }}>
-          <span className="mono" style={{ fontSize:"9px",letterSpacing:"0.2em",color:"var(--dim)" }}>{current+1} / {total} VISIBLE</span>
-          <span className="mono" style={{ fontSize:"9px",letterSpacing:"0.2em",color:"var(--dim)" }}>SKYLINEDEV — {new Date().getFullYear()}</span>
-        </div>
-
       </main>
     </>
   );
