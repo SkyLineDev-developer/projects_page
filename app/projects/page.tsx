@@ -2,7 +2,6 @@
 
 import { useState, useEffect } from "react";
 
-// ─── Tipos ───────────────────────────────────────────────────────────────────
 interface ApiProject {
   id: number;
   project_name: string;
@@ -10,338 +9,793 @@ interface ApiProject {
   project_description: string | null;
   category: string;
   technologies: string[];
+  sector?: string;
+  resultado?: string;
 }
 
 interface Project {
   id: string;
   name: string;
-  domain: string;
   url: string;
   description: string;
   category: string;
   tags: string[];
+  sector: string;
+  resultado: string;
 }
 
 const categoryLabel: Record<string, string> = {
-  Company_Project: "Business Project",
-  Personal:        "Personal Project",
+  Company_Project: "Proyecto para cliente",
+  Personal: "Proyecto personal",
 };
 
 function mapProject(p: ApiProject): Project {
-  let domain = p.project_link;
-  try { domain = new URL(p.project_link).hostname.replace(/^www\./, ""); } catch {}
   return {
     id: String(p.id),
     name: p.project_name,
-    domain,
     url: p.project_link,
-    description: p.project_description ?? "Project developed by SkylineDev.",
+    description: p.project_description ?? "Sitio web desarrollado por SkylineDev.",
     category: categoryLabel[p.category] ?? p.category,
     tags: p.technologies,
+    sector: p.sector ?? "",
+    resultado: p.resultado ?? "",
   };
 }
-// ─────────────────────────────────────────────────────────────────────────────
 
 export default function Home() {
-  const [projects, setProjects] = useState<Project[]>([]);
-  const [loading, setLoading]   = useState(true);
-  const [error, setError]       = useState<string | null>(null);
-  const [current, setCurrent]   = useState(0);
-  const [dir, setDir]           = useState<"left" | "right">("right");
+  const [projects, setProjects]   = useState<Project[]>([]);
+  const [loading, setLoading]     = useState(true);
+  const [error, setError]         = useState<string | null>(null);
+  const [active, setActive]       = useState(0);
   const [animating, setAnimating] = useState(false);
-  const [iframeLoading, setIframeLoading] = useState(true);
-  const [isMobile, setIsMobile] = useState(false);
+  const [ready, setReady]         = useState(false);
+  const [iframeOk, setIframeOk]   = useState(false);
 
   useEffect(() => {
-    const update = () => setIsMobile(window.innerWidth <= 860);
-    update();
-    window.addEventListener("resize", update);
-    return () => window.removeEventListener("resize", update);
-  }, []);
-
-  // Fetch desde la API
-  useEffect(() => {
-    fetch(process.env.NODE_ENV === "production"
+    fetch(
+      process.env.NODE_ENV === "production"
         ? "https://www.api-projects.skylinedev.com.co/api/users"
-        : "http://localhost:3001/api/users")
+        : "http://localhost:3001/api/users"
+    )
       .then(r => { if (!r.ok) throw new Error(`HTTP ${r.status}`); return r.json(); })
-      .then((data: ApiProject[]) => { setProjects(data.map(mapProject)); setLoading(false); })
+      .then((data: ApiProject[]) => {
+        setProjects(data.map(mapProject));
+        setLoading(false);
+        setTimeout(() => setReady(true), 60);
+      })
       .catch(e => { setError(e.message); setLoading(false); });
   }, []);
 
-  const total   = projects.length;
-  const project = projects[current];
+  const total = projects.length;
+  const proj  = projects[active];
 
-  function goTo(index: number, direction?: "left" | "right") {
-    if (animating || index === current) return;
-    const d = direction ?? (index > current ? "right" : "left");
-    setDir(d);
+  function go(i: number) {
+    if (animating || i === active) return;
     setAnimating(true);
-    setIframeLoading(true);
-    setTimeout(() => {
-      setCurrent(index);
-      setAnimating(false);
-    }, 380);
+    setIframeOk(false);
+    setTimeout(() => { setActive(i); setAnimating(false); }, 380);
   }
-
-  function prev() { goTo((current - 1 + total) % total, "left"); }
-  function next() { goTo((current + 1) % total, "right"); }
+  function prev() { go((active - 1 + total) % total); }
+  function next() { go((active + 1) % total); }
 
   useEffect(() => {
-    const onKey = (e: KeyboardEvent) => {
+    const h = (e: KeyboardEvent) => {
       if (e.key === "ArrowRight") next();
-      if (e.key === "ArrowLeft") prev();
+      if (e.key === "ArrowLeft")  prev();
     };
-    window.addEventListener("keydown", onKey);
-    return () => window.removeEventListener("keydown", onKey);
-  }, [current, animating]);
+    window.addEventListener("keydown", h);
+    return () => window.removeEventListener("keydown", h);
+  }, [active, animating, total]);
 
-  const dot = "#4ade80";
-
-  // ── Estados de carga / error / vacío ──────────────────────────────────────
   if (loading) return (
-    <main style={{ minHeight:"100vh", background:"#080808", display:"flex", alignItems:"center", justifyContent:"center", flexDirection:"column", gap:"16px" }}>
-      <svg style={{ animation:"spin 1.2s linear infinite" }} width="32" height="32" viewBox="0 0 32 32" fill="none">
-        <style>{"@keyframes spin{to{transform:rotate(360deg)}}"}</style>
-        <circle cx="16" cy="16" r="12" stroke="#1c1c1c" strokeWidth="2"/>
-        <path d="M16 4 A12 12 0 0 1 28 16" stroke="#4ade80" strokeWidth="2" strokeLinecap="round"/>
-      </svg>
-      <span style={{ fontFamily:"'DM Mono',monospace", fontSize:"11px", letterSpacing:"0.25em", color:"#666" }}>CARGANDO PROYECTOS...</span>
-    </main>
+    <div style={{ minHeight:"100vh", background:"#080808", display:"flex", alignItems:"center", justifyContent:"center", flexDirection:"column", gap:"16px" }}>
+      <style>{`@keyframes sp{to{transform:rotate(360deg)}}`}</style>
+      <div style={{ width:"36px", height:"36px", border:"2px solid #222", borderTopColor:"#F69B02", borderRadius:"50%", animation:"sp 0.8s linear infinite" }} />
+      <span style={{ fontFamily:"'DM Mono',monospace", fontSize:"10px", letterSpacing:"0.3em", color:"#555" }}>CARGANDO</span>
+    </div>
   );
 
   if (error) return (
-    <main style={{ minHeight:"100vh", background:"#080808", display:"flex", alignItems:"center", justifyContent:"center", flexDirection:"column", gap:"12px" }}>
-      <span style={{ fontFamily:"'DM Mono',monospace", fontSize:"11px", letterSpacing:"0.2em", color:"#f87171" }}>ERROR AL CARGAR</span>
-      <span style={{ fontFamily:"'DM Mono',monospace", fontSize:"10px", color:"#666" }}>{error}</span>
-    </main>
+    <div style={{ minHeight:"100vh", background:"#080808", display:"flex", alignItems:"center", justifyContent:"center" }}>
+      <span style={{ fontFamily:"'DM Mono',monospace", fontSize:"10px", color:"#C0392B", letterSpacing:"0.2em" }}>{error}</span>
+    </div>
   );
 
-  if (projects.length === 0) return (
-    <main style={{ minHeight:"100vh", background:"#080808", display:"flex", alignItems:"center", justifyContent:"center" }}>
-      <span style={{ fontFamily:"'DM Mono',monospace", fontSize:"11px", letterSpacing:"0.25em", color:"#666" }}>SIN PROYECTOS</span>
-    </main>
+  if (!projects.length) return (
+    <div style={{ minHeight:"100vh", background:"#080808", display:"flex", alignItems:"center", justifyContent:"center" }}>
+      <span style={{ fontFamily:"'DM Mono',monospace", fontSize:"10px", color:"#555", letterSpacing:"0.25em" }}>SIN PROYECTOS</span>
+    </div>
   );
+
+  const pct = total ? Math.round(((active + 1) / total) * 100) : 0;
 
   return (
     <>
       <style>{`
-        @import url('https://fonts.googleapis.com/css2?family=DM+Mono:wght@300;400;500&family=Syne:wght@400;600;700;800&display=swap');
-        *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+        @import url('https://fonts.googleapis.com/css2?family=Syne:wght@400;600;700;800&family=DM+Mono:wght@300;400;500&display=swap');
+
+        *, *::before, *::after { box-sizing:border-box; margin:0; padding:0; }
+
         :root {
-          --bg: #080808; --surface: #0f0f0f; --border: #1c1c1c;
-          --text: #efefef; --muted: #666; --dim: #2a2a2a;
-          --accent: #4ade80; --accent-dim: rgba(74,222,128,0.06);
+          --bg:        #080808;
+          --surface:   #0f0f0f;
+          --card:      #111111;
+          --border:    #1e1e1e;
+          --text:      #f0f0f0;
+          --muted:     #555;
+          --dim:       #222;
+          --gold:      #F69B02;
+          --gold-dim:  rgba(246,155,2,0.08);
+          --gold-glow: rgba(246,155,2,0.18);
         }
-        .syne { font-family: 'Syne', sans-serif; }
-        .mono { font-family: 'DM Mono', monospace; }
 
-        @keyframes slideInR  { from { opacity:0; transform:translateX(36px);  } to { opacity:1; transform:translateX(0); } }
-        @keyframes slideInL  { from { opacity:0; transform:translateX(-36px); } to { opacity:1; transform:translateX(0); } }
-        @keyframes slideOutR { from { opacity:1; transform:translateX(0);     } to { opacity:0; transform:translateX(-36px); } }
-        @keyframes slideOutL { from { opacity:1; transform:translateX(0);     } to { opacity:0; transform:translateX(36px); } }
-        .anim-in-r  { animation: slideInR  0.38s cubic-bezier(0.16,1,0.3,1) forwards; }
-        .anim-in-l  { animation: slideInL  0.38s cubic-bezier(0.16,1,0.3,1) forwards; }
-        .anim-out-r { animation: slideOutR 0.38s cubic-bezier(0.16,1,0.3,1) forwards; }
-        .anim-out-l { animation: slideOutL 0.38s cubic-bezier(0.16,1,0.3,1) forwards; }
+        html, body { height: 100%; }
 
-        .nav-btn {
-          font-family:'DM Mono',monospace; font-size:11px; letter-spacing:0.18em;
-          padding:11px 20px; border:1px solid var(--border);
-          background:transparent; color:var(--muted); cursor:pointer;
-          transition:all 0.2s ease;
+        @keyframes fadeUp   { from{opacity:0;transform:translateY(18px)} to{opacity:1;transform:translateY(0)} }
+        @keyframes fadeIn   { from{opacity:0} to{opacity:1} }
+        @keyframes slideOut { from{opacity:1;transform:translateX(0)} to{opacity:0;transform:translateX(-24px)} }
+        @keyframes slideIn  { from{opacity:0;transform:translateX(24px)} to{opacity:1;transform:translateX(0)} }
+        @keyframes pulse    { 0%,100%{opacity:1} 50%{opacity:0.4} }
+        @keyframes sp       { to{transform:rotate(360deg)} }
+        @keyframes ticker   { to{transform:translateX(-50%)} }
+
+        /* ── móvil: slide vertical ── */
+        @keyframes slideUpIn  { from{opacity:0;transform:translateY(28px)} to{opacity:1;transform:translateY(0)} }
+        @keyframes slideUpOut { from{opacity:1;transform:translateY(0)} to{opacity:0;transform:translateY(-20px)} }
+
+        .page-enter .e1 { animation:fadeUp 0.6s cubic-bezier(0.16,1,0.3,1) 0.05s both; }
+        .page-enter .e2 { animation:fadeUp 0.6s cubic-bezier(0.16,1,0.3,1) 0.15s both; }
+        .page-enter .e3 { animation:fadeUp 0.6s cubic-bezier(0.16,1,0.3,1) 0.25s both; }
+        .page-enter .e4 { animation:fadeIn 0.5s ease 0.38s both; }
+
+        .out { animation:slideOut 0.36s cubic-bezier(0.4,0,1,1) both; }
+        .in  { animation:slideIn  0.4s  cubic-bezier(0.16,1,0.3,1) both; }
+
+        /* ═══════════════════════════════════════
+           DESKTOP LAYOUT
+        ═══════════════════════════════════════ */
+        .root {
+          min-height: 100vh;
+          background: var(--bg);
+          display: grid;
+          grid-template-rows: auto 2px 1fr auto;
+          color: var(--text);
+          position: relative;
+          overflow: hidden;
         }
-        .nav-btn:hover { border-color:#F69B02; color:#F69B02; background:var(--accent-dim); }
-        .nav-btn:active { transform:scale(0.97); }
 
-        .dot-btn {
-          height:3px; border-radius:2px; border:none; cursor:pointer; padding:0;
-          background:var(--dim); transition:all 0.3s cubic-bezier(0.16,1,0.3,1);
+        .root::before {
+          content: '';
+          position: fixed; inset: 0;
+          background-image:
+            linear-gradient(rgba(246,155,2,0.025) 1px, transparent 1px),
+            linear-gradient(90deg, rgba(246,155,2,0.025) 1px, transparent 1px);
+          background-size: 60px 60px;
+          pointer-events: none;
+          z-index: 0;
         }
-        .dot-btn.active { background:#F69B02; }
-        .dot-btn:hover:not(.active) { background:var(--muted); }
 
+        /* Header */
+        .hdr {
+          position: relative; z-index: 10;
+          display: flex; align-items: center; justify-content: space-between;
+          padding: 0 40px;
+          height: 56px;
+          border-bottom: 1px solid var(--border);
+          background: rgba(8,8,8,0.92);
+          backdrop-filter: blur(8px);
+        }
+        .logo {
+          font-family: 'Syne', sans-serif;
+          font-size: 17px; font-weight: 800;
+          letter-spacing: 0.04em; color: var(--text);
+        }
+        .logo span { color: var(--gold); }
+        .hdr-center {
+          position: absolute; left: 50%; transform: translateX(-50%);
+          font-family: 'DM Mono', monospace;
+          font-size: 10px; letter-spacing: 0.3em; color: var(--muted);
+        }
+        .hdr-right { display: flex; align-items: center; gap: 10px; }
+        .live-dot {
+          width: 7px; height: 7px; border-radius: 50%;
+          background: #4ade80; box-shadow: 0 0 8px #4ade8066;
+          animation: pulse 2.2s ease-in-out infinite;
+        }
+        .live-label {
+          font-family: 'DM Mono', monospace;
+          font-size: 9px; letter-spacing: 0.22em; color: #4ade80;
+        }
+
+        /* Progress */
+        .prog-bar { background: var(--dim); position: relative; overflow: hidden; }
+        .prog-fill {
+          position: absolute; left: 0; top: 0; bottom: 0;
+          background: var(--gold);
+          transition: width 0.4s cubic-bezier(0.16,1,0.3,1);
+        }
+
+        /* Main grid */
+        .main {
+          position: relative; z-index: 1;
+          display: grid;
+          grid-template-columns: 1fr 1fr;
+          overflow: hidden;
+        }
+
+        /* Left col */
+        .list-col {
+          border-right: 1px solid var(--border);
+          display: flex; flex-direction: column; overflow: hidden;
+        }
+        .hero-block {
+          flex: 1; padding: 40px 40px 28px;
+          display: flex; flex-direction: column; justify-content: space-between;
+          position: relative; overflow: hidden;
+        }
+        .watermark {
+          position: absolute; right: -10px; bottom: -30px;
+          font-family: 'Syne', sans-serif; font-weight: 800;
+          font-size: clamp(140px,20vw,200px); line-height: 1;
+          letter-spacing: -0.06em; color: var(--gold);
+          opacity: 0.04; pointer-events: none; user-select: none;
+        }
+        .top-info {
+          display: flex; align-items: flex-start; justify-content: space-between;
+          margin-bottom: 20px;
+        }
+        .counter-big {
+          font-family: 'Syne', sans-serif; font-size: 11px;
+          font-weight: 700; letter-spacing: 0.22em; color: var(--muted);
+        }
+        .sector-tag {
+          display: inline-flex; align-items: center; gap: 6px;
+          margin-top: 10px; font-family: 'DM Mono', monospace;
+          font-size: 9px; letter-spacing: 0.2em; color: var(--gold);
+          border: 1px solid var(--gold-glow); padding: 4px 12px;
+          background: var(--gold-dim);
+        }
+        .cat-label {
+          font-family: 'DM Mono', monospace; font-size: 9px;
+          letter-spacing: 0.2em; color: var(--muted);
+          border: 1px solid var(--border); padding: 4px 12px;
+        }
+        .accent-rule { width: 48px; height: 3px; background: var(--gold); margin-bottom: 18px; }
+        .hero-name {
+          font-family: 'Syne', sans-serif;
+          font-size: clamp(36px,4.5vw,56px); font-weight: 800;
+          line-height: 0.9; letter-spacing: -0.04em; color: var(--text);
+          margin-bottom: 20px; word-break: break-word;
+        }
+        .hero-desc {
+          font-family: 'DM Mono', monospace; font-size: 12px;
+          line-height: 1.9; color: #666; margin-bottom: 20px; max-width: 440px;
+        }
+        .result-band {
+          display: flex; align-items: stretch;
+          margin-bottom: 24px; border: 1px solid var(--border); overflow: hidden;
+        }
+        .result-accent { width: 4px; background: var(--gold); flex-shrink: 0; }
+        .result-body { padding: 14px 18px; background: var(--card); flex: 1; }
+        .result-eyebrow {
+          font-family: 'DM Mono', monospace; font-size: 8px;
+          letter-spacing: 0.28em; color: var(--gold); margin-bottom: 6px;
+        }
+        .result-text {
+          font-family: 'Syne', sans-serif; font-size: 14px;
+          font-weight: 600; color: var(--text); line-height: 1.5;
+        }
+        .tags { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 28px; }
         .tag {
-          font-family:'DM Mono',monospace; font-size:9px; letter-spacing:0.2em;
-          padding:3px 9px; border:1px solid var(--border); color:var(--muted);
+          font-family: 'DM Mono', monospace; font-size: 9px;
+          letter-spacing: 0.16em; color: var(--muted);
+          background: var(--dim); padding: 4px 10px;
+        }
+        .cta-row { display: flex; align-items: center; gap: 14px; }
+        .cta-primary {
+          font-family: 'DM Mono', monospace; font-size: 10px;
+          letter-spacing: 0.18em; color: #080808; background: var(--gold);
+          text-decoration: none; padding: 12px 24px;
+          transition: opacity 0.18s; flex-shrink: 0;
+        }
+        .cta-primary:hover { opacity: 0.88; }
+        .cta-ghost {
+          font-family: 'DM Mono', monospace; font-size: 10px;
+          letter-spacing: 0.18em; color: var(--muted);
+          border: 1px solid var(--border); background: transparent;
+          text-decoration: none; padding: 11px 20px;
+          transition: border-color 0.18s, color 0.18s;
+        }
+        .cta-ghost:hover { border-color: var(--gold); color: var(--gold); }
+
+        /* Project strip */
+        .proj-list { border-top: 1px solid var(--border); display: flex; flex-direction: column; flex-shrink: 0; }
+        .proj-list-inner { display: flex; align-items: stretch; overflow-x: auto; }
+        .proj-item {
+          flex: 1; min-width: 120px; padding: 14px 18px;
+          border-right: 1px solid var(--border);
+          cursor: pointer; background: transparent; text-align: left;
+          border-top: none; border-bottom: none; border-left: none;
+          transition: background 0.16s; position: relative;
+        }
+        .proj-item:last-child { border-right: none; }
+        .proj-item.active { background: var(--card); }
+        .proj-item::after {
+          content: ''; position: absolute; bottom: 0; left: 0; right: 0;
+          height: 2px; background: var(--gold);
+          transform: scaleX(0); transition: transform 0.24s cubic-bezier(0.16,1,0.3,1);
+          transform-origin: left;
+        }
+        .proj-item.active::after, .proj-item:hover::after { transform: scaleX(1); }
+        .proj-item-num {
+          font-family: 'DM Mono', monospace; font-size: 8px;
+          letter-spacing: 0.22em; color: var(--muted); margin-bottom: 5px;
+        }
+        .proj-item-name {
+          font-family: 'Syne', sans-serif; font-size: 12px; font-weight: 700;
+          color: var(--text); line-height: 1.2;
+          white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 140px;
+        }
+        .proj-item.active .proj-item-name { color: var(--gold); }
+        .proj-item-sector {
+          font-family: 'DM Mono', monospace; font-size: 8px;
+          letter-spacing: 0.16em; color: var(--muted); margin-top: 3px;
+          white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
         }
 
-        .open-link {
-          font-family:'DM Mono',monospace; font-size:10px; letter-spacing:0.15em;
-          color:var(--muted); text-decoration:none; padding:5px 12px;
-          border:1px solid var(--border); transition:all 0.2s ease; white-space:nowrap;
+        /* Right col */
+        .preview-col { display: flex; flex-direction: column; background: #0a0a0a; }
+        .preview-header {
+          display: flex; align-items: center; gap: 10px;
+          padding: 9px 16px; border-bottom: 1px solid var(--border);
+          background: var(--surface); flex-shrink: 0;
         }
-        .open-link:hover { color:#F69B02; border-color:#F69B02; background:var(--accent-dim); }
+        .traffic { display: flex; gap: 5px; }
+        .tl { width: 10px; height: 10px; border-radius: 50%; }
+        .url-pill {
+          flex: 1; font-family: 'DM Mono', monospace; font-size: 10px;
+          color: var(--muted); background: var(--dim); padding: 5px 12px;
+          border-radius: 3px; overflow: hidden; text-overflow: ellipsis;
+          white-space: nowrap; letter-spacing: 0.04em; border: 1px solid var(--border);
+        }
+        .open-btn {
+          font-family: 'DM Mono', monospace; font-size: 9px;
+          letter-spacing: 0.16em; color: #080808; background: var(--gold);
+          text-decoration: none; padding: 6px 14px;
+          white-space: nowrap; flex-shrink: 0; transition: opacity 0.18s;
+        }
+        .open-btn:hover { opacity: 0.85; }
+        .iframe-zone { flex: 1; position: relative; overflow: hidden; min-height: 300px; }
+        .iframe-loader {
+          position: absolute; inset: 0; z-index: 5;
+          display: flex; flex-direction: column; align-items: center; justify-content: center;
+          gap: 12px; background: var(--bg); transition: opacity 0.3s;
+        }
+        .iframe-loader.gone { opacity: 0; pointer-events: none; }
+        .spin { animation: sp 1s linear infinite; }
 
-        @keyframes ticker { to { transform:translateX(-50%); } }
-        .ticker { display:inline-flex; animation:ticker 22s linear infinite; white-space:nowrap; }
-        .ticker:hover { animation-play-state:paused; }
+        /* Nav arrows */
+        .nav-overlay {
+          position: fixed; bottom: 72px; right: 36px; z-index: 20;
+          display: flex; flex-direction: column; gap: 6px;
+        }
+        .nav-btn {
+          width: 48px; height: 48px; border: 1.5px solid var(--border);
+          background: rgba(8,8,8,0.9); backdrop-filter: blur(8px);
+          color: var(--text); font-size: 18px; cursor: pointer;
+          display: flex; align-items: center; justify-content: center;
+          transition: border-color 0.18s, color 0.18s, transform 0.12s;
+          font-family: 'DM Mono', monospace;
+        }
+        .nav-btn:hover  { border-color: var(--gold); color: var(--gold); }
+        .nav-btn:active { transform: scale(0.9); }
 
-        @keyframes spin { to { transform:rotate(360deg); } }
-        .spinner { animation:spin 1.2s linear infinite; }
+        /* Footer */
+        .footer {
+          position: relative; z-index: 10;
+          border-top: 1px solid var(--border);
+          background: var(--surface); overflow: hidden;
+        }
+        .ticker-track {
+          display: inline-flex; white-space: nowrap;
+          animation: ticker 26s linear infinite; padding: 11px 0;
+        }
+        .ticker-track:hover { animation-play-state: paused; }
+        .t-item { font-family: 'DM Mono', monospace; font-size: 9px; letter-spacing: 0.28em; color: var(--muted); }
+        .t-item.hi { color: var(--gold); }
+        .t-sep { margin: 0 22px; color: var(--dim); }
 
-        .progress-fill { height:100%; background:#F69B02; transition:width 0.4s cubic-bezier(0.16,1,0.3,1); }
+        /* ═══════════════════════════════════════
+           MÓVIL — layout completamente diferente
+        ═══════════════════════════════════════ */
+        @media (max-width: 900px) {
 
-        .layout { display:flex; flex:1; overflow:hidden; }
-        .left { width:380px; min-width:380px; display:flex; flex-direction:column; border-right:1px solid var(--border); background:var(--surface); }
-        .right { flex:1; display:flex; flex-direction:column; position:relative; min-height:0; }
-        .iframe-holder { flex:1; position:relative; min-height:420px; overflow:hidden; }
-        .iframe-holder iframe { width:100%; height:100%; min-height:320px; display:block; }
+          /* Ocultar todo lo de desktop que no aplica */
+          .preview-col   { display: none; }
+          .nav-overlay   { display: none; }
+          .hdr-center    { display: none; }
+          .cta-ghost     { display: none; }
+          .hero-block    { display: none; }
+          .proj-list     { display: none; }
 
-        @media (max-width:860px) {
-          .layout { flex-direction:column; }
-          .left { width:100%; min-width:0; border-right:none; border-bottom:1px solid var(--border); }
-          .right { min-height:0; }
-          .iframe-holder { min-height:300px; }
+          /* El root pasa a ser flex columna a pantalla completa */
+          .root {
+            grid-template-rows: auto 2px 1fr auto;
+          }
+
+          /* El main ocupa todo el ancho */
+          .main {
+            grid-template-columns: 1fr;
+            overflow: visible;
+          }
+
+          /* La list-col en móvil es la pantalla completa */
+          .list-col {
+            border-right: none;
+            display: flex;
+            flex-direction: column;
+            height: 100%;
+            overflow: hidden;
+          }
+
+          /* ── Tarjeta móvil ── */
+          .mobile-card {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            padding: 28px 24px 24px;
+            position: relative;
+            overflow-y: auto;
+          }
+
+          .mobile-top {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            margin-bottom: 32px;
+          }
+
+          .mobile-counter {
+            font-family: 'DM Mono', monospace;
+            font-size: 10px;
+            letter-spacing: 0.24em;
+            color: var(--muted);
+          }
+
+          .mobile-sector {
+            font-family: 'DM Mono', monospace;
+            font-size: 9px;
+            letter-spacing: 0.2em;
+            color: var(--gold);
+            border: 1px solid var(--gold-glow);
+            padding: 4px 12px;
+            background: var(--gold-dim);
+          }
+
+          .mobile-cat {
+            font-family: 'DM Mono', monospace;
+            font-size: 9px;
+            letter-spacing: 0.2em;
+            color: var(--muted);
+            border: 1px solid var(--border);
+            padding: 4px 12px;
+          }
+
+          .mobile-accent { width: 40px; height: 3px; background: var(--gold); margin-bottom: 16px; }
+
+          .mobile-name {
+            font-family: 'Syne', sans-serif;
+            font-size: clamp(38px, 11vw, 52px);
+            font-weight: 800;
+            line-height: 0.9;
+            letter-spacing: -0.04em;
+            color: var(--text);
+            margin-bottom: 24px;
+            word-break: break-word;
+          }
+
+          .mobile-desc {
+            font-family: 'DM Mono', monospace;
+            font-size: 12px;
+            line-height: 1.85;
+            color: #666;
+            margin-bottom: 22px;
+          }
+
+          .mobile-result {
+            display: flex;
+            align-items: stretch;
+            margin-bottom: 24px;
+            border: 1px solid var(--border);
+            overflow: hidden;
+          }
+          .mobile-result-bar { width: 4px; background: var(--gold); flex-shrink: 0; }
+          .mobile-result-body { padding: 14px 16px; background: var(--card); flex: 1; }
+          .mobile-result-label {
+            font-family: 'DM Mono', monospace;
+            font-size: 8px; letter-spacing: 0.28em;
+            color: var(--gold); margin-bottom: 6px;
+          }
+          .mobile-result-text {
+            font-family: 'Syne', sans-serif;
+            font-size: 14px; font-weight: 600;
+            color: var(--text); line-height: 1.5;
+          }
+
+          .mobile-tags { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 32px; }
+          .mobile-tag {
+            font-family: 'DM Mono', monospace; font-size: 9px;
+            letter-spacing: 0.16em; color: var(--muted);
+            background: var(--dim); padding: 4px 10px;
+          }
+
+          .mobile-cta {
+            font-family: 'DM Mono', monospace;
+            font-size: 11px; letter-spacing: 0.2em;
+            color: #080808; background: var(--gold);
+            text-decoration: none;
+            padding: 16px 28px;
+            display: inline-block;
+            align-self: flex-start;
+            transition: opacity 0.18s;
+          }
+          .mobile-cta:hover { opacity: 0.88; }
+
+          /* ── Nav inferior ── */
+          .mobile-nav {
+            display: flex;
+            align-items: center;
+            border-top: 1px solid var(--border);
+            flex-shrink: 0;
+          }
+
+          .mobile-nav-btn {
+            flex: 1;
+            height: 56px;
+            background: transparent;
+            border: none;
+            border-right: 1px solid var(--border);
+            color: var(--muted);
+            font-family: 'DM Mono', monospace;
+            font-size: 18px;
+            cursor: pointer;
+            transition: background 0.16s, color 0.16s;
+            display: flex; align-items: center; justify-content: center;
+          }
+          .mobile-nav-btn:last-child { border-right: none; }
+          .mobile-nav-btn:active { background: var(--dim); color: var(--gold); }
+
+          .mobile-nav-dots {
+            flex: 2;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 6px;
+            height: 56px;
+            border-right: 1px solid var(--border);
+          }
+
+          .mobile-dot {
+            height: 2px; border-radius: 1px;
+            border: none; cursor: pointer; padding: 0;
+            background: var(--dim);
+            transition: all 0.3s cubic-bezier(0.16,1,0.3,1);
+          }
+          .mobile-dot.on { background: var(--gold); }
+
+          /* Watermark móvil */
+          .mobile-watermark {
+            position: fixed;
+            right: -16px; bottom: 70px;
+            font-family: 'Syne', sans-serif; font-weight: 800;
+            font-size: 38vw; line-height: 1;
+            letter-spacing: -0.06em; color: var(--gold);
+            opacity: 0.03; pointer-events: none; user-select: none;
+            z-index: 0;
+          }
+
+          /* Animaciones móvil */
+          .mobile-anim-in  { animation: slideUpIn  0.4s cubic-bezier(0.16,1,0.3,1) both; }
+          .mobile-anim-out { animation: slideUpOut 0.34s cubic-bezier(0.4,0,1,1) both; }
         }
 
-        .big-num {
-          position:absolute; right:28px; bottom:16px;
-          font-family:'Syne',sans-serif; font-weight:800; font-size:130px;
-          line-height:1; color:var(--text); opacity:0.025;
-          pointer-events:none; user-select:none; letter-spacing:-0.06em;
+        /* Ocultar elementos solo-móvil en desktop */
+        @media (min-width: 901px) {
+          .mobile-card     { display: none; }
+          .mobile-nav      { display: none; }
+          .mobile-watermark{ display: none; }
         }
       `}</style>
 
-      <main style={{ minHeight:"100vh", display:"flex", flexDirection:"column", background:"var(--bg)", color:"var(--text)" }}>
+      <div className={`root ${ready ? "page-enter" : ""}`}>
 
-        {/* Ticker */}
-        <div style={{ overflow:"hidden", borderBottom:"1px solid var(--border)", padding:"8px 0", background:"var(--surface)", flexShrink:0 }}>
-          <div className="ticker">
-            {[...Array(2)].map((_, i) => (
-              <span key={i} className="mono" style={{ fontSize:"9px", letterSpacing:"0.3em" }}>
-                {["PORTFOLIO","SKYLINEDEV","PROYECTOS","DEPLOYED","LIVE","READY"].map((t,j) => (
-                  <span key={j}>
-                    <span style={{ color: j%2===0 ? "#F69B02" : "var(--muted)" }}>{t}</span>
-                    <span style={{ margin:"0 22px", color:"var(--dim)" }}>·</span>
-                  </span>
-                ))}
-              </span>
-            ))}
+        {/* HEADER */}
+        <header className="hdr e1">
+          <div className="logo">Skyline<span>Dev</span></div>
+          <div className="hdr-center">PORTAFOLIO DE PROYECTOS</div>
+          <div className="hdr-right">
+            <span className="live-dot" />
+            <span className="live-label">EN LÍNEA</span>
           </div>
+        </header>
+
+        {/* PROGRESS */}
+        <div className="prog-bar" style={{ height:"2px" }}>
+          <div className="prog-fill" style={{ width:`${pct}%` }} />
         </div>
 
-        <div className="layout">
+        {/* MAIN */}
+        <main className="main">
+          <div className="list-col">
 
-          {/* ── LEFT PANEL ── */}
-          <div className="left">
-            <div style={{ flex:1, padding:"36px 32px", position:"relative", overflow:"hidden" }}>
-              <div className="big-num">{String(current+1).padStart(2,"0")}</div>
-
-              {/* Counter + status */}
-              <div style={{ display:"flex", alignItems:"center", justifyContent:"space-between", marginBottom:"32px" }}>
-                <span className="mono" style={{ fontSize:"10px", letterSpacing:"0.25em", color:"var(--muted)" }}>
-                  {String(current+1).padStart(2,"0")} / {String(total).padStart(2,"0")}
-                </span>
-                <div style={{ display:"flex", alignItems:"center", gap:"7px" }}>
-                  <span style={{ width:"7px", height:"7px", borderRadius:"50%", background:dot, display:"inline-block", boxShadow:`0 0 6px 1px ${dot}55` }} />
-                  <span className="mono" style={{ fontSize:"9px", letterSpacing:"0.2em", color:"var(--muted)" }}>
-                    READY
-                  </span>
+            {/* ══════════ DESKTOP hero ══════════ */}
+            <div className="hero-block">
+              <div className="watermark">{String(active+1).padStart(2,"00")}</div>
+              <div>
+                <div className="top-info e2">
+                  <div>
+                    <div className="counter-big">{String(active+1).padStart(2,"0")} / {String(total).padStart(2,"0")}</div>
+                    {proj.sector && <div className="sector-tag">● {proj.sector.toUpperCase()}</div>}
+                  </div>
+                  <div className="cat-label">{proj.category.toUpperCase()}</div>
+                </div>
+                <div className={animating ? "out" : "in"} key={proj.id}>
+                  <div className="accent-rule" />
+                  <h1 className="hero-name">{proj.name}</h1>
+                  <p className="hero-desc">{proj.description}</p>
+                  {proj.resultado && (
+                    <div className="result-band">
+                      <div className="result-accent" />
+                      <div className="result-body">
+                        <div className="result-eyebrow">✦ RESULTADO</div>
+                        <div className="result-text">{proj.resultado}</div>
+                      </div>
+                    </div>
+                  )}
+                  {proj.tags.length > 0 && (
+                    <div className="tags">{proj.tags.map(t => <span key={t} className="tag">{t}</span>)}</div>
+                  )}
+                  <div className="cta-row">
+                    <a href={proj.url} target="_blank" rel="noopener noreferrer" className="cta-primary">VER SITIO ↗</a>
+                    <a href={proj.url} target="_blank" rel="noopener noreferrer" className="cta-ghost">ABRIR EN NUEVA PESTAÑA ↗</a>
+                  </div>
                 </div>
               </div>
-
-              {/* Animated content */}
-              <div
-                key={project.id}
-                className={animating
-                  ? (dir==="right" ? "anim-out-l" : "anim-out-r")
-                  : (dir==="right" ? "anim-in-r"  : "anim-in-l")}
-              >
-                <h1 className="syne" style={{ fontSize:"clamp(30px,3.5vw,30px)", fontWeight:800, lineHeight:0.92, letterSpacing:"-0.03em", color:"var(--text)", marginBottom:"16px", wordBreak:"break-word" }}>
-                  {project.name}
-                </h1>
-                {/* <p className="mono" style={{ fontSize:"12px", color:"var(--accent)", marginBottom:"18px", letterSpacing:"0.04em" }}>
-                  {project.category}
-                </p> */}
-                <p className="mono" style={{ fontSize:"12px", color:"#F69B02", marginBottom:"18px", letterSpacing:"0.04em" }}>
-                  {project.category}
-                </p>
-                <p className="mono" style={{ fontSize:"12px", lineHeight:1.85, color:"var(--muted)", marginBottom:"22px" }}>
-                  {project.description}
-                </p>
-                {project.tags.length > 0 && (
-                  <div style={{ display:"flex", flexWrap:"wrap", gap:"7px" }}>
-                    {project.tags.map(tag => <span key={tag} className="tag">{tag}</span>)}
-                  </div>
-                )}
-              </div>
             </div>
 
-            {/* Progress */}
-            <div style={{ height:"2px", background:"var(--dim)", margin:"0 32px", flexShrink:0 }}>
-              <div className="progress-fill" style={{ width:`${((current+1)/total)*100}%` }} />
-            </div>
-
-            {/* Nav */}
-            <div style={{ padding:"18px 32px", display:"flex", alignItems:"center", justifyContent:"space-between", flexShrink:0 }}>
-              <button className="nav-btn" onClick={prev}>← PREV</button>
-              <div style={{ display:"flex", gap:"6px", alignItems:"center" }}>
-                {projects.map((_,i) => (
-                  <button key={i} className={`dot-btn ${i===current?"active":""}`} style={{ width: i===current ? "26px" : "8px" }} onClick={() => goTo(i)} />
+            {/* Desktop strip */}
+            <div className="proj-list e3">
+              <div className="proj-list-inner">
+                {projects.map((p, i) => (
+                  <button key={p.id} className={`proj-item ${i === active ? "active" : ""}`} onClick={() => go(i)}>
+                    <div className="proj-item-num">{String(i+1).padStart(2,"0")}</div>
+                    <div className="proj-item-name">{p.name}</div>
+                    {p.sector && <div className="proj-item-sector">{p.sector}</div>}
+                  </button>
                 ))}
               </div>
-              <button className="nav-btn" onClick={next}>NEXT →</button>
             </div>
 
-            <div style={{ paddingBottom:"14px", textAlign:"center" }}>
-              <span className="mono" style={{ fontSize:"9px", letterSpacing:"0.2em", color:"var(--dim)" }}>← → KEYBOARD</span>
-            </div>
-          </div>
+            {/* ══════════ MÓVIL card ══════════ */}
+            <div className="mobile-watermark">{String(active+1).padStart(2,"0")}</div>
 
-          {/* ── RIGHT PANEL ── */}
-          <div className="right">
-            {/* Browser bar */}
-            <div style={{ display:"flex", alignItems:"center", gap:"10px", padding:"9px 14px", borderBottom:"1px solid var(--border)", background:"var(--surface)", flexShrink:0 }}>
-              <div style={{ display:"flex", gap:"5px" }}>
-                <span style={{ width:"10px",height:"10px",borderRadius:"50%",background:"#ff5f57",display:"inline-block" }} />
-                <span style={{ width:"10px",height:"10px",borderRadius:"50%",background:"#febc2e",display:"inline-block" }} />
-                <span style={{ width:"10px",height:"10px",borderRadius:"50%",background:"#28c840",display:"inline-block" }} />
+            <div className="mobile-card">
+              <div className="mobile-top">
+                <span className="mobile-counter">{String(active+1).padStart(2,"0")} / {String(total).padStart(2,"0")}</span>
+                {proj.sector
+                  ? <span className="mobile-sector">● {proj.sector.toUpperCase()}</span>
+                  : <span className="mobile-cat">{proj.category.toUpperCase()}</span>
+                }
               </div>
-              <span className="mono" style={{ flex:1, fontSize:"11px", color:"var(--muted)", background:"var(--dim)", padding:"4px 12px", borderRadius:"4px", overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap", letterSpacing:"0.04em" }}>
-                {project.url}
-              </span>
-              <a href={project.url} target="_blank" rel="noopener noreferrer" className="open-link">OPEN ↗</a>
-            </div>
 
-            {/* iframe o botón móvil */}
-            {isMobile ? (
-              <div style={{ flex:1, display:"flex", alignItems:"center", justifyContent:"center", padding:"40px 24px", background:"var(--surface)" }}>
-                <a href={project.url} target="_blank" rel="noopener noreferrer" className="open-link" style={{ padding:"14px 20px", fontSize:"12px" }}>
-                  SEE PROJECT ↗
-                </a>
-              </div>
-            ) : (
-              <div className="iframe-holder">
-                {iframeLoading && (
-                  <div style={{ position:"absolute",inset:0,zIndex:10,background:"var(--bg)",display:"flex",flexDirection:"column",alignItems:"center",justifyContent:"center",gap:"12px" }}>
-                    <svg className="spinner" width="26" height="26" viewBox="0 0 26 26" fill="none">
-                      <circle cx="13" cy="13" r="10" stroke="var(--dim)" strokeWidth="2"/>
-                      <path d="M13 3 A10 10 0 0 1 23 13" stroke="#F69B02" strokeWidth="2" strokeLinecap="round"/>
-                    </svg>
-                    <span className="mono" style={{ fontSize:"10px",letterSpacing:"0.25em",color:"var(--muted)" }}>CARGANDO</span>
+              <div className={animating ? "mobile-anim-out" : "mobile-anim-in"} key={"m-" + proj.id} style={{ display:"flex", flexDirection:"column", flex:1 }}>
+                <div className="mobile-accent" />
+                <h1 className="mobile-name">{proj.name}</h1>
+                <p className="mobile-desc">{proj.description}</p>
+
+                {proj.resultado && (
+                  <div className="mobile-result">
+                    <div className="mobile-result-bar" />
+                    <div className="mobile-result-body">
+                      <div className="mobile-result-label">✦ RESULTADO</div>
+                      <div className="mobile-result-text">{proj.resultado}</div>
+                    </div>
                   </div>
                 )}
-                <iframe
-                  key={project.id}
-                  src={project.url}
-                  title={project.name}
-                  style={{ width:"100%",height:"100%",border:"none",opacity:iframeLoading?0:1,transition:"opacity 0.3s ease" }}
-                  onLoad={() => setIframeLoading(false)}
-                  sandbox="allow-scripts allow-same-origin allow-forms allow-popups"
-                />
+
+                {proj.tags.length > 0 && (
+                  <div className="mobile-tags">{proj.tags.map(t => <span key={t} className="mobile-tag">{t}</span>)}</div>
+                )}
+
+                <a href={proj.url} target="_blank" rel="noopener noreferrer" className="mobile-cta">
+                  VER SITIO ↗
+                </a>
               </div>
-            )}
+            </div>
+
+            {/* Nav inferior móvil */}
+            <div className="mobile-nav">
+              <button className="mobile-nav-btn" onClick={prev}>←</button>
+              <div className="mobile-nav-dots">
+                {projects.map((_, i) => (
+                  <button
+                    key={i}
+                    className={`mobile-dot ${i === active ? "on" : ""}`}
+                    style={{ width: i === active ? "26px" : "8px" }}
+                    onClick={() => go(i)}
+                  />
+                ))}
+              </div>
+              <button className="mobile-nav-btn" onClick={next}>→</button>
+            </div>
+
           </div>
+
+          {/* RIGHT COL desktop */}
+          <div className="preview-col e4">
+            <div className="preview-header">
+              <div className="traffic">
+                <span className="tl" style={{ background:"#ff5f57" }} />
+                <span className="tl" style={{ background:"#febc2e" }} />
+                <span className="tl" style={{ background:"#28c840" }} />
+              </div>
+              <span className="url-pill">{proj.url}</span>
+              <a href={proj.url} target="_blank" rel="noopener noreferrer" className="open-btn">ABRIR ↗</a>
+            </div>
+            <div className="iframe-zone">
+              <div className={`iframe-loader ${iframeOk ? "gone" : ""}`}>
+                <svg className="spin" width="26" height="26" viewBox="0 0 26 26" fill="none">
+                  <circle cx="13" cy="13" r="10" stroke="#222" strokeWidth="2" />
+                  <path d="M13 3 A10 10 0 0 1 23 13" stroke="#F69B02" strokeWidth="2" strokeLinecap="round" />
+                </svg>
+                <span style={{ fontFamily:"'DM Mono',monospace", fontSize:"9px", letterSpacing:"0.28em", color:"#555" }}>CARGANDO</span>
+              </div>
+              <iframe
+                key={proj.id}
+                src={proj.url}
+                title={proj.name}
+                onLoad={() => setIframeOk(true)}
+                sandbox="allow-scripts allow-same-origin allow-forms allow-popups"
+                style={{ width:"100%", height:"100%", border:"none", display:"block" }}
+              />
+            </div>
+          </div>
+        </main>
+
+        {/* FOOTER */}
+        <footer className="footer">
+          <div style={{ overflow:"hidden" }}>
+            <div className="ticker-track">
+              {[...Array(2)].map((_,i) => (
+                <span key={i}>
+                  {[
+                    {t:"Tu negocio en internet", hi:true},
+                    {t:"Más clientes",           hi:false},
+                    {t:"Más ventas",             hi:true},
+                    {t:"SkylineDev",             hi:false},
+                    {t:"Sitios que funcionan",   hi:true},
+                    {t:"Resultados reales",      hi:false},
+                    {t:"Diseño con propósito",   hi:true},
+                    {t:"Colombia",               hi:false},
+                  ].map((item,j) => (
+                    <span key={j}>
+                      <span className={`t-item${item.hi?" hi":""}`}>{item.t}</span>
+                      <span className="t-sep">·</span>
+                    </span>
+                  ))}
+                </span>
+              ))}
+            </div>
+          </div>
+        </footer>
+
+        {/* NAV ARROWS desktop */}
+        <div className="nav-overlay">
+          <button className="nav-btn" onClick={prev} aria-label="Anterior">↑</button>
+          <button className="nav-btn" onClick={next} aria-label="Siguiente">↓</button>
         </div>
 
-        {/* Bottom bar */}
-        <div style={{ padding:"9px 32px",borderTop:"1px solid var(--border)",background:"var(--surface)",display:"flex",justifyContent:"space-between",alignItems:"center",flexShrink:0 }}>
-          <span className="mono" style={{ fontSize:"9px",letterSpacing:"0.2em",color:"var(--dim)" }}>{current+1} / {total} VISIBLE</span>
-          <span className="mono" style={{ fontSize:"9px",letterSpacing:"0.2em",color:"var(--dim)" }}>SKYLINEDEV — {new Date().getFullYear()}</span>
-        </div>
-
-      </main>
+      </div>
     </>
   );
 }
